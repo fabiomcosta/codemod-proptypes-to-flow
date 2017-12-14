@@ -10,11 +10,13 @@ function addFlowComment(j, ast) {
     comments.filter(e => e.value.indexOf('@flow') !== -1).length > 0;
 
   if (!containsFlowComment) {
-    comments.unshift(j.commentBlock(' @flow '));
+    comments.unshift(j.commentLine(' @flow'));
   }
 
   getBodyNode().comments = comments;
 }
+
+export const parser = 'flow';
 
 export default function transformer(file, api) {
   const j = api.jscodeshift;
@@ -35,3 +37,4 @@ export default function transformer(file, api) {
     return file.source;
   }
 }
+

@@ -14,10 +14,17 @@ const isStaticPropType = p => {
   );
 };
 
-function containsFlowProps(classBody) {
-  return !!classBody.find(bodyElement =>
-    bodyElement.key.name.toLowerCase().includes('props')
-  );
+function hasFlowAnnotation(classDeclaration) {
+  return classDeclaration.value.superTypeParameters != null;
+}
+
+function addSuperTypePropParameter(j, classDeclaration, genericTypeName) {
+  j(classDeclaration).replaceWith({
+    ...classDeclaration.node,
+    superTypeParameters: j.typeParameterInstantiation([
+      j.genericTypeAnnotation(j.identifier(genericTypeName), null)
+    ])
+  });
 }
 
 /**
@@ -33,7 +40,8 @@ export default function transformEs6Classes(ast, j) {
   // for local imported components... If finding all classes is too greety,
   // we might combine findReactES6ClassDeclaration with classes that have a
   // render method.
-  const reactClassPaths = ast.find(j.ClassDeclaration);
+  // const reactClassPaths = ast.find(j.ClassDeclaration);
+  const reactClassPaths = reactUtils.findReactES6ClassDeclaration(ast);
 
   // find classes with propType static class property
   const modifications = reactClassPaths
@@ -44,14 +52,20 @@ export default function transformEs6Classes(ast, j) {
         : `${className}Props`;
       let properties;
 
+      if (hasFlowAnnotation(p)) {
+        return;
+      }
+
+      addSuperTypePropParameter(j, p, propIdentifier);
+
       const classBody = p.value.body && p.value.body.body;
+
       if (classBody) {
-        if (containsFlowProps(classBody)) {
-          return;
-        }
 
         annotateConstructor(j, classBody, propIdentifier);
+
         const index = findIndex(classBody, isStaticPropType);
+
         if (typeof index !== 'undefined') {
           const classProperty = classBody.splice(index, 1).pop();
           properties = classProperty.value.properties;
@@ -82,12 +96,13 @@ export default function transformEs6Classes(ast, j) {
         }
 
         properties = properties || [];
+
         const typeAlias = createTypeAlias(
           j,
           transformProperties(j, properties),
           {
             name: propIdentifier,
-            shouldExport: true,
+            shouldExport: false,
           }
         );
 
@@ -101,6 +116,7 @@ export default function transformEs6Classes(ast, j) {
           }
         }
       }
+
     })
     .size();
 

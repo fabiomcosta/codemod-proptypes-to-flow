@@ -96,12 +96,14 @@ module.exports = function(j) {
     return null;
   };
 
+  const validComponentModuleNames = new Set(['Component', 'PureComponent']);
+
   // ---------------------------------------------------------------------------
-  // Finds alias for React.Component if used as named import.
+  // Finds alias for React.{Component,PureComponent} if used as named import.
   const findReactComponentName = path => {
+
     const reactImportDeclaration = path
       .find(j.ImportDeclaration, {
-        type: 'ImportDeclaration',
         source: {
           type: 'Literal',
         },
@@ -110,12 +112,13 @@ module.exports = function(j) {
 
     const componentImportSpecifier = reactImportDeclaration
       .find(j.ImportSpecifier, {
-        type: 'ImportSpecifier',
         imported: {
           type: 'Identifier',
-          name: 'Component',
         },
       })
+      .filter(
+        importSpecifier => validComponentModuleNames.has(importSpecifier.node.imported.name)
+      )
       .at(0);
 
     const paths = componentImportSpecifier.paths();
@@ -125,29 +128,32 @@ module.exports = function(j) {
   // Finds all classes that extend React.Component
   const findReactES6ClassDeclaration = path => {
     const componentImport = findReactComponentName(path);
-    const selector = componentImport
-      ? {
-          superClass: {
-            type: 'Identifier',
-            name: componentImport,
-          },
-        }
-      : {
-          superClass: {
-            type: 'MemberExpression',
-            object: {
-              type: 'Identifier',
-              name: 'React',
-            },
-            property: {
-              type: 'Identifier',
-              name: 'Component',
-            },
-          },
-        };
+    if (componentImport) {
+      return path.find(j.ClassDeclaration, {
+        superClass: {
+          type: 'Identifier',
+          name: componentImport,
+        },
+      });
+    }
 
-    return path.find(j.ClassDeclaration, selector);
+    const selector = {
+      superClass: {
+        type: 'MemberExpression',
+        object: {
+          type: 'Identifier',
+          name: 'React',
+        },
+        property: {
+          type: 'Identifier',
+        },
+      },
+    };
+    return path
+      .find(j.ClassDeclaration, selector)
+      .filter(p => validComponentModuleNames.has(p.node.superClass.property.name));
   };
+
 
   // ---------------------------------------------------------------------------
   // Checks if the React class has mixins

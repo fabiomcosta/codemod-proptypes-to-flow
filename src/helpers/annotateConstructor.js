@@ -4,7 +4,7 @@
  * @param {jscodeshiftApi} j jscodeshift API
  * @param {Array} body Array of `Node`
  */
-export default function annotateConstructor(j, body, name = 'Props') {
+export default function annotateConstructor(j, body, name) {
   let constructorIndex;
   const typeAnnotation = j.typeAnnotation(
     j.genericTypeAnnotation(j.identifier(name), null)
@@ -22,9 +22,7 @@ export default function annotateConstructor(j, body, name = 'Props') {
     }
   });
 
-  body.splice(
-    constructorIndex,
-    0,
+  body.unshift(
     j.classProperty(j.identifier('props'), null, typeAnnotation)
   );
 }

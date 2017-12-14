@@ -80,12 +80,10 @@ export default function transformFunctionalComponents(ast, j) {
   components.forEach(c => {
     const flowTypesRemoved = componentToPropTypesRemoved[c];
     const propIdentifier = components.length === 1 ? 'Props' : `${c}Props`;
-    const flowTypeProps = j.exportNamedDeclaration(
-      j.typeAlias(
-        j.identifier(propIdentifier),
-        null,
-        j.objectTypeAnnotation(flowTypesRemoved)
-      )
+    const flowTypeProps = j.typeAlias(
+      j.identifier(propIdentifier),
+      null,
+      j.objectTypeAnnotation(flowTypesRemoved)
     );
 
     ast
@@ -93,8 +91,7 @@ export default function transformFunctionalComponents(ast, j) {
         id: { name: c },
       })
       .forEach(f => {
-        const insertNode = f.parent.node.type === 'Program' ? f : f.parent;
-        insertNode.insertBefore(flowTypeProps);
+        f.insertBefore(flowTypeProps);
         insertTypeIdentifierInFunction(f, j, propIdentifier);
       });
 

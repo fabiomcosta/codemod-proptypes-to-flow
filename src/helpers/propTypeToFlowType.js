@@ -123,9 +123,19 @@ export default function propTypeToFlowType(j, key, value) {
         )
       );
     } else if (name === 'oneOfType' || name === 'oneOf') {
-      returnValue = j.unionTypeAnnotation(
-        node.arguments[0].elements.map(arg => propTypeToFlowType(j, null, arg))
-      );
+      const firstArg = node.arguments[0];
+      if (j.ArrayExpression.check(firstArg)) {
+        const unionValues = firstArg.elements.map(arg => propTypeToFlowType(j, null, arg));
+        if (unionValues.every(Boolean)) {
+          returnValue = j.unionTypeAnnotation(unionValues);
+        }
+      }
+      if (!returnValue) {
+        throw new Error(
+          `prop "${key.name}": props of type "${name}" are only supported as static arrays. ` +
+          `Can't create union type from "${j(node).toSource()}".`
+        );
+      }
     }
   } else if (node.type === 'ObjectExpression') {
     returnValue = j.objectTypeAnnotation(
@@ -138,7 +148,14 @@ export default function propTypeToFlowType(j, key, value) {
   // finally return either an objectTypeProperty or just a property if `key` is null
   if (!key) {
     return returnValue;
-  } else {
-    return j.objectTypeProperty(key, returnValue, !required);
   }
+
+  if (returnValue == null) {
+    throw new Error(
+      `prop "${key.name}": type "${j(node).toSource()}" ` +
+      `is not supported by the codemod.`
+    );
+  }
+
+  return j.objectTypeProperty(key, returnValue, !required);
 }
